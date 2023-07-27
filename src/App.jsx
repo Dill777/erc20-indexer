@@ -17,29 +17,44 @@ function App() {
   const [results, setResults] = useState([]);
   const [hasQueried, setHasQueried] = useState(false);
   const [tokenDataObjects, setTokenDataObjects] = useState([]);
+  const [connectedWalletAddress, setConnectedWalletAddress] = useState('');
 
   async function getTokenBalance() {
-    const config = {
-      apiKey: '<-- COPY-PASTE YOUR ALCHEMY API KEY HERE -->',
-      network: Network.ETH_MAINNET,
-    };
+    // const config = {
+    //   apiKey: 'zZOipDggv74vUiTWRqhMChKmjMmNWYDN',
+    //   network: Network.ETH_MAINNET,
+    // };
 
-    const alchemy = new Alchemy(config);
-    const data = await alchemy.core.getTokenBalances(userAddress);
-
-    setResults(data);
-
-    const tokenDataPromises = [];
-
-    for (let i = 0; i < data.tokenBalances.length; i++) {
-      const tokenData = alchemy.core.getTokenMetadata(
-        data.tokenBalances[i].contractAddress
-      );
-      tokenDataPromises.push(tokenData);
+    // Проверяем, доступен ли Web3 провайдер (например, MetaMask)
+    if (window.ethereum) {
+      try {
+        // Запрос разрешения на подключение кошелька
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const userAccounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (userAccounts.length > 0) {
+          setConnectedWalletAddress(userAccounts[0]);
+          const config = {
+            apiKey: 'zZOipDggv74vUiTWRqhMChKmjMmNWYDN',
+            network: Network.ETH_MAINNET,
+          };
+          const alchemy = new Alchemy(config);
+          const data = await alchemy.core.getTokenBalances(userAccounts[0]);
+          setResults(data);
+          const tokenDataPromises = [];
+          for (let i = 0; i < data.tokenBalances.length; i++) {
+            const tokenData = alchemy.core.getTokenMetadata(data.tokenBalances[i].contractAddress);
+            tokenDataPromises.push(tokenData);
+          }
+          setTokenDataObjects(await Promise.all(tokenDataPromises));
+          setHasQueried(true);
+        }
+      } catch (error) {
+        console.error('Error connecting wallet:', error);
+      }
+    } else {
+      alert('Please install MetaMask or another Ethereum wallet to use this feature.');
     }
-
-    setTokenDataObjects(await Promise.all(tokenDataPromises));
-    setHasQueried(true);
+  
   }
   return (
     <Box w="100vw">
